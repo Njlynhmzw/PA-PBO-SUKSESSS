@@ -7,5 +7,9 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="library" name="mysql.connector.java" level="project" />
+    <orderEntry type="library" name="mysql-connector-j-9.7.0" level="project" />
+    <orderEntry type="library" name="sparkjava.spark.core" level="project" />
+    <orderEntry type="library" name="google.code.gson" level="project" />
   </component>
 </module>

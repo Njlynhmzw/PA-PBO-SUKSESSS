@@ -6,12 +6,24 @@ import service.ProductService;
 /**
  * DataSeeder — mengisi data awal agar frontend langsung bisa ditest.
  * Dipanggil sekali saat server start dari Main.java.
- * Hapus atau kosongi method seed() kalau tidak mau data awal.
+ *
+ * ✅ PERBAIKAN: Sekarang mengecek database terlebih dahulu.
+ *    - Jika database KOSONG  → isi 12 produk + 3 member awal.
+ *    - Jika database SUDAH ADA ISINYA → langsung skip, data aman.
  */
 public class DataSeeder {
 
     public static void seed(ProductService ps, MemberService ms) {
-        System.out.println("Mengisi data awal...");
+
+        // ── PROTEKSI: Cek apakah database sudah berisi data ──────────
+        // Jika sudah ada produk, skip seluruh proses seeding.
+        // Ini mencegah data manual yang sudah diinput tertimpa ulang.
+        if (!ps.isEmpty()) {
+            System.out.println("ℹ️  Data sudah ada di database. Seeding dilewati.");
+            return;
+        }
+
+        System.out.println("📦 Database kosong. Mengisi data awal...");
 
         // ── PRODUK ────────────────────────────────────────────────────
         // T-Shirts (kategori 0, index jenis: 4=Racing Tee, 0=Polo, 1=Crew Neck)
@@ -23,7 +35,7 @@ public class DataSeeder {
         ps.tambahProduk("Papaya Orange Snapback",        320_000,  15, "Free Size", false,  0, "Headwear", 0);
         ps.tambahProduk("McLaren F1 Bucket Hat",         275_000,  10, "Free Size", true,  10, "Headwear", 2);
 
-        // Outerwear (kategori 2: 1=Hoodie, 0=Jacket)
+        // Outerwear (kategori 2: 1=Hoodie, 2=Windbreaker)
         ps.tambahProduk("McLaren Team Hoodie",           890_000,   8, "L",         true,  15, "Outerwear", 1);
         ps.tambahProduk("McLaren Windbreaker Jacket",  1_200_000,   5, "M",         false,  0, "Outerwear", 2);
 
@@ -38,13 +50,13 @@ public class DataSeeder {
 
         // ── MEMBER ────────────────────────────────────────────────────
         try {
-            ms.daftarMember("Lando Norris Fan",  "08111111111", "lando@fan.com",  "PLUS");
-            ms.daftarMember("Oscar Piastri Fan", "08222222222", "oscar@fan.com",  "REGULAR");
+            ms.daftarMember("Lando Norris Fan",  "08111111111", "lando@fan.com",   "PLUS");
+            ms.daftarMember("Oscar Piastri Fan", "08222222222", "oscar@fan.com",   "REGULAR");
             ms.daftarMember("McLaren Collector", "08333333333", "collector@f1.com","REGULAR");
         } catch (Exception e) {
-            // Abaikan jika sudah ada (misalnya seed dipanggil dua kali)
+            System.out.println("⚠️  Member seed dilewati (sudah ada): " + e.getMessage());
         }
 
-        System.out.println("✅ Data awal selesai: " + 12 + " produk, 3 member.");
+        System.out.println("✅ Data awal selesai: 12 produk, 3 member.");
     }
 }

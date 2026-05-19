@@ -1,8 +1,13 @@
 package models;
 
 /**
- * Model Member — data pelanggan terdaftar.
- * Menerapkan konsep: Encapsulation, Enum
+ * Model Member — versi MySQL-compatible.
+ *
+ * ✅ PERBAIKAN:
+ *   1. Tambah constructor lengkap (id, nama, phone, email, tier, totalTrx, totalBel)
+ *      untuk dipakai MemberRepository saat mapRow() dari database.
+ *   2. Tambah setMemberId() agar Repository bisa set ID dari MySQL counter.
+ *   3. ID tidak lagi di-generate di constructor — ID datang dari MySQL counter.
  */
 public class Member {
 
@@ -29,16 +34,27 @@ public class Member {
     private int    totalTransaksi;
     private double totalBelanja;
 
-    private static int memberCounter = 1;
-
-    public Member(String name, String phone, String email, Tier tier) {
-        this.memberId       = String.format("MEM-%04d", memberCounter++);
-        this.name           = name;
+    // ── Constructor untuk member BARU (ID belum ada, di-set oleh Repository) ──
+    public Member(String nama, String phone, String email, Tier tier) {
+        this.memberId       = null; // akan di-set oleh MemberRepository.createNew()
+        this.name           = nama;
         this.phone          = phone;
         this.email          = email;
         this.tier           = tier;
         this.totalTransaksi = 0;
         this.totalBelanja   = 0.0;
+    }
+
+    // ✅ Constructor lengkap untuk mapRow() dari database
+    public Member(String memberId, String name, String phone, String email,
+                  Tier tier, int totalTransaksi, double totalBelanja) {
+        this.memberId       = memberId;
+        this.name           = name;
+        this.phone          = phone;
+        this.email          = email;
+        this.tier           = tier;
+        this.totalTransaksi = totalTransaksi;
+        this.totalBelanja   = totalBelanja;
     }
 
     /**
@@ -55,19 +71,18 @@ public class Member {
     }
 
     // ── Getters & Setters ─────────────────────────────────────────
-    public String getMemberId()    { return memberId; }
-    public String getName()        { return name; }
-    public void   setName(String n){ this.name = n; }
-    public String getPhone()       { return phone; }
-    public void   setPhone(String p){ this.phone = p; }
-    public String getEmail()       { return email; }
-    public void   setEmail(String e){ this.email = e; }
-    public Tier   getTier()        { return tier; }
-    public void   setTier(Tier t)  { this.tier = t; }
-    public int    getTotalTransaksi()  { return totalTransaksi; }
-    public double getTotalBelanja()    { return totalBelanja; }
-
-    public static void resetCounter() { memberCounter = 1; }
+    public String getMemberId()              { return memberId; }
+    public void   setMemberId(String id)     { this.memberId = id; } // ✅ untuk Repository
+    public String getName()                  { return name; }
+    public void   setName(String n)          { this.name = n; }
+    public String getPhone()                 { return phone; }
+    public void   setPhone(String p)         { this.phone = p; }
+    public String getEmail()                 { return email; }
+    public void   setEmail(String e)         { this.email = e; }
+    public Tier   getTier()                  { return tier; }
+    public void   setTier(Tier t)            { this.tier = t; }
+    public int    getTotalTransaksi()        { return totalTransaksi; }
+    public double getTotalBelanja()          { return totalBelanja; }
 
     @Override
     public String toString() {

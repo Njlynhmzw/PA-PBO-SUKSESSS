@@ -8,13 +8,13 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * LAYER SERVICE — Logika bisnis untuk proses Transaksi.
+ * TransactionService — versi MySQL.
  *
- * Tanggung jawab:
- *   - Membuat transaksi baru
- *   - Menambahkan item ke transaksi (validasi stok)
- *   - Menghitung harga setelah diskon member (Polymorphism via Discountable)
- *   - Menyimpan transaksi selesai
+ * ✅ PERBAIKAN:
+ *   1. tambahItem() → setelah kurangi stok, langsung persist ke DB
+ *      via productRepository.update() agar stok tidak balik saat restart.
+ *   2. simpanTransaksi() → transactionRepository.save() sekarang
+ *      INSERT ke MySQL, bukan ArrayList.
  */
 public class TransactionService {
 
@@ -27,16 +27,12 @@ public class TransactionService {
         this.productRepository     = productRepository;
     }
 
-    /** Buat transaksi baru (boleh null untuk non-member) */
+    // ── BUAT TRANSAKSI BARU ──────────────────────────────────────────
     public Transaction buatTransaksi(Member member) {
         return new Transaction(member);
     }
 
-    /**
-     * Tambahkan produk ke transaksi.
-     * Validasi: produk ada, stok cukup.
-     * Kembalikan pesan error atau null jika sukses.
-     */
+    // ── TAMBAH ITEM KE TRANSAKSI ─────────────────────────────────────
     public String tambahItem(Transaction transaksi, String produkId, int qty) {
         Optional<Product> opt = productRepository.findById(produkId);
         if (opt.isEmpty())            return "Produk tidak ditemukan.";
@@ -45,22 +41,25 @@ public class TransactionService {
         if (qty <= 0)                 return "Jumlah harus lebih dari 0.";
         if (produk.getStock() < qty)  return "Stok tidak mencukupi! (tersisa " + produk.getStock() + ")";
 
-        // Buat item — Polymorphism: kalkulasi diskon member via interface Discountable
+        // Buat item dengan kalkulasi diskon member (Polymorphism via Discountable)
         TransactionItem item = new TransactionItem(produk, qty, transaksi.getMemberTier());
         transaksi.addItem(item);
 
-        // Kurangi stok langsung
+        // ✅ FIX: Kurangi stok dan langsung persist ke MySQL
         produk.setStock(produk.getStock() - qty);
+        productRepository.update(produk);
+
         return null; // null = sukses
     }
 
-    /** Selesaikan & simpan transaksi ke repository */
+    // ── SIMPAN TRANSAKSI KE DATABASE ─────────────────────────────────
     public void simpanTransaksi(Transaction transaksi) {
+        // ✅ FIX: save() sekarang INSERT ke MySQL (TransactionRepository versi MySQL)
         transactionRepository.save(transaksi);
     }
 
     // ── READ ────────────────────────────────────────────────────────
-    public List<Transaction>     semuaTransaksi()                        { return transactionRepository.findAll(); }
-    public Optional<Transaction> cariById(String id)                     { return transactionRepository.findById(id); }
-    public boolean               isEmpty()                               { return transactionRepository.isEmpty(); }
+    public List<Transaction>     semuaTransaksi()          { return transactionRepository.findAll(); }
+    public Optional<Transaction> cariById(String id)       { return transactionRepository.findById(id); }
+    public boolean               isEmpty()                 { return transactionRepository.isEmpty(); }
 }

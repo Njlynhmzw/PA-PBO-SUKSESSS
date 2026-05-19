@@ -7,12 +7,15 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * LAYER SERVICE — Logika bisnis untuk manajemen Member.
+ * MemberService — versi MySQL.
  *
- * Tanggung jawab:
- *   - Validasi duplikasi nomor telepon
- *   - Logika upgrade tier otomatis
- *   - Koordinasi operasi CRUD via Repository
+ * ✅ PERBAIKAN:
+ *   1. daftarMember() → pakai memberRepository.createNew() agar ID
+ *      di-generate dari tabel counters MySQL dan langsung INSERT ke DB.
+ *   2. updateMember() → pakai memberRepository.update() agar perubahan
+ *      benar-benar di-UPDATE ke MySQL.
+ *   3. catatTransaksi() → setelah update total belanja, langsung
+ *      persist ke database via memberRepository.update().
  */
 public class MemberService {
 
@@ -23,28 +26,33 @@ public class MemberService {
     }
 
     // ── CREATE ──────────────────────────────────────────────────────
-    /** Daftarkan member baru; lempar exception jika nomor sudah ada */
     public Member daftarMember(String nama, String phone, String email, String tierStr) {
         if (memberRepository.existsByPhone(phone)) {
             throw new IllegalArgumentException("Nomor telepon " + phone + " sudah terdaftar!");
         }
-        Member.Tier tier = tierStr.equalsIgnoreCase("PLUS") ? Member.Tier.PLUS : Member.Tier.REGULAR;
-        Member member = new Member(nama, phone, email, tier);
-        memberRepository.save(member);
-        return member;
+        Member.Tier tier = tierStr.equalsIgnoreCase("PLUS")
+                ? Member.Tier.PLUS : Member.Tier.REGULAR;
+
+        // ✅ FIX: createNew() = generate ID dari counters MySQL + INSERT ke DB
+        return memberRepository.createNew(nama, phone, email, tier);
     }
 
     // ── READ ────────────────────────────────────────────────────────
-    public List<Member>     semuaMember()                 { return memberRepository.findAll(); }
-    public Optional<Member> cariByPhone(String phone)     { return memberRepository.findByPhone(phone); }
-    public Optional<Member> cariById(String memberId)     { return memberRepository.findById(memberId); }
-    public boolean          isEmpty()                     { return memberRepository.isEmpty(); }
+    public List<Member>     semuaMember()              { return memberRepository.findAll(); }
+    public Optional<Member> cariByPhone(String phone)  { return memberRepository.findByPhone(phone); }
+    public Optional<Member> cariById(String memberId)  { return memberRepository.findById(memberId); }
+    public boolean          isEmpty()                  { return memberRepository.isEmpty(); }
 
     // ── UPDATE ──────────────────────────────────────────────────────
     public boolean updateMember(String id, String nama, String phone, String email) {
         Optional<Member> opt = memberRepository.findById(id);
-        opt.ifPresent(m -> { m.setName(nama); m.setPhone(phone); m.setEmail(email); });
-        return opt.isPresent();
+        if (opt.isEmpty()) return false;
+        Member m = opt.get();
+        m.setName(nama);
+        m.setPhone(phone);
+        m.setEmail(email);
+        memberRepository.update(m);    // ✅ FIX: persist ke MySQL
+        return true;
     }
 
     // ── DELETE ──────────────────────────────────────────────────────
@@ -53,8 +61,12 @@ public class MemberService {
     }
 
     // ── BUSINESS LOGIC ──────────────────────────────────────────────
-    /** Catat transaksi ke member (update total & cek upgrade tier) */
+    /**
+     * ✅ FIX: Setelah tambahTransaksi() update total di object,
+     *    langsung persist ke MySQL agar tidak hilang saat restart.
+     */
     public void catatTransaksi(Member member, double total) {
-        member.tambahTransaksi(total); // logika upgrade ada di model Member
+        member.tambahTransaksi(total);       // update total + cek upgrade tier
+        memberRepository.update(member);     // ✅ persist ke MySQL
     }
 }
