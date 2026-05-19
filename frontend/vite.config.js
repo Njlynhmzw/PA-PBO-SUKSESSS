@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // Setiap request ke /api diteruskan ke Java server di port 8080
+      // Setiap request /api diteruskan ke Java server di port 8080
       "/api": {
         target: "http://localhost:8080",
         changeOrigin: true,
