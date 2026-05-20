@@ -8,15 +8,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * TransactionRepository — versi MySQL.
- * Menyimpan transaksi + item ke database agar tidak hilang saat restart.
- */
+
 public class TransactionRepository {
 
     private Connection conn() { return DatabaseConfig.getConnection(); }
 
-    // ── Generate ID dari tabel counters MySQL ────────────────────────
     private String generateId() {
         try {
             conn().setAutoCommit(false);
@@ -38,14 +34,11 @@ public class TransactionRepository {
         }
     }
 
-    // ── SAVE transaksi + semua item-nya ke MySQL ─────────────────────
     public void save(Transaction transaction) {
-        // Set ID dari MySQL counter jika belum ada
         if (transaction.getTransactionId() == null || transaction.getTransactionId().isBlank()) {
             transaction.setTransactionId(generateId());
         }
 
-        // 1. INSERT ke tabel transactions
         String sqlTrx = """
             INSERT INTO transactions
                 (id, member_id, subtotal, member_discount, total)
@@ -64,7 +57,6 @@ public class TransactionRepository {
             throw new RuntimeException("Gagal menyimpan transaksi: " + e.getMessage(), e);
         }
 
-        // 2. INSERT semua item ke tabel transaction_items
         String sqlItem = """
             INSERT INTO transaction_items
                 (transaction_id, product_id, product_name, qty, price_per_item, subtotal)
@@ -86,7 +78,6 @@ public class TransactionRepository {
         }
     }
 
-    // ── FIND ALL transaksi (beserta item-nya) ────────────────────────
     public List<Transaction> findAll() {
         String sql = "SELECT * FROM transactions ORDER BY created_at DESC";
         List<Transaction> result = new ArrayList<>();
@@ -103,7 +94,6 @@ public class TransactionRepository {
         return result;
     }
 
-    // ── FIND BY ID ───────────────────────────────────────────────────
     public Optional<Transaction> findById(String transactionId) {
         String sql = "SELECT * FROM transactions WHERE id = ?";
         try (PreparedStatement ps = conn().prepareStatement(sql)) {
@@ -120,7 +110,6 @@ public class TransactionRepository {
         return Optional.empty();
     }
 
-    // ── HELPERS ──────────────────────────────────────────────────────
     public int     count()   {
         try (ResultSet rs = conn().createStatement()
                 .executeQuery("SELECT COUNT(*) FROM transactions")) {
@@ -129,7 +118,6 @@ public class TransactionRepository {
     }
     public boolean isEmpty() { return count() == 0; }
 
-    // ── Map ResultSet → Transaction (header + total dari DB) ────────
     private Transaction mapRow(ResultSet rs) throws SQLException {
         String trxId    = rs.getString("id");
         String memberId = rs.getString("member_id");
@@ -140,10 +128,8 @@ public class TransactionRepository {
         Transaction t = new Transaction();
         t.setTransactionId(trxId);
 
-        // ✅ Set nilai total langsung dari database
         t.setTotalsFromDb(subtotal, discount, total);
 
-        // Load member jika ada
         if (memberId != null) {
             MemberRepository memberRepo = new MemberRepository();
             memberRepo.findById(memberId).ifPresent(t::setMember);
@@ -151,7 +137,6 @@ public class TransactionRepository {
         return t;
     }
 
-    // ── Load items dari transaction_items untuk satu transaksi ────────
     private void loadItems(Transaction t) {
         String sql = """
             SELECT ti.*, p.category, p.jenis, p.has_discount, p.discount_percent,
@@ -165,15 +150,13 @@ public class TransactionRepository {
             ps.setString(1, t.getTransactionId());
             ResultSet rs = ps.executeQuery();
             while (rs.next()) {
-                // Buat Product snapshot dari data yang tersimpan
                 ProductRepository productRepo = new ProductRepository();
                 Optional<Product> optProd = productRepo.findById(rs.getString("product_id"));
 
                 if (optProd.isPresent()) {
                     int     qty           = rs.getInt("qty");
                     double  pricePerItem  = rs.getDouble("price_per_item");
-                    // Buat TransactionItem dari snapshot (pakai memberTier NONE
-                    // karena harga sudah final saat transaksi dilakukan)
+
                     TransactionItem item = new TransactionItem(
                             optProd.get(), qty, "NONE"
                     );

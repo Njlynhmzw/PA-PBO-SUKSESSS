@@ -4,7 +4,6 @@ import java.util.Scanner;
 
 public class InputHelper {
 
-    // INPUT INTEGER
     public static int readInt(Scanner input) {
         while (true) {
             try {
@@ -15,7 +14,6 @@ public class InputHelper {
         }
     }
 
-    // INPUT DOUBLE
     public static double readDouble(Scanner input) {
         while (true) {
             try {

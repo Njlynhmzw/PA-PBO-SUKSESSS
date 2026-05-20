@@ -8,15 +8,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * MemberRepository — versi MySQL.
- * Semua data member disimpan ke database, tidak hilang saat restart.
- */
 public class MemberRepository {
 
     private Connection conn() { return DatabaseConfig.getConnection(); }
 
-    // ── Generate ID dari tabel counters MySQL ────────────────────────
     private String generateId() {
         try {
             conn().setAutoCommit(false);
@@ -38,9 +33,7 @@ public class MemberRepository {
         }
     }
 
-    // ── SAVE (INSERT member baru ke MySQL) ───────────────────────────
     public void save(Member member) {
-        // Jika ID belum di-set (member baru dari luar), generate dulu
         if (member.getMemberId() == null || member.getMemberId().isBlank()) {
             member.setMemberId(generateId());
         }
@@ -68,7 +61,6 @@ public class MemberRepository {
         }
     }
 
-    // ── UPDATE (persist perubahan data member ke MySQL) ──────────────
     public void update(Member member) {
         String sql = """
             UPDATE members
@@ -94,7 +86,6 @@ public class MemberRepository {
         }
     }
 
-    // ── CREATE NEW (generate ID + save sekaligus) ────────────────────
     public Member createNew(String nama, String phone, String email, Member.Tier tier) {
         String newId = generateId();
         Member m = new Member(newId, nama, phone, email, tier, 0, 0.0);
@@ -102,7 +93,6 @@ public class MemberRepository {
         return m;
     }
 
-    // ── FIND ALL ─────────────────────────────────────────────────────
     public List<Member> findAll() {
         String sql = "SELECT * FROM members ORDER BY created_at ASC";
         List<Member> result = new ArrayList<>();
@@ -115,7 +105,6 @@ public class MemberRepository {
         return result;
     }
 
-    // ── FIND BY PHONE ────────────────────────────────────────────────
     public Optional<Member> findByPhone(String phone) {
         String sql = "SELECT * FROM members WHERE phone = ?";
         try (PreparedStatement ps = conn().prepareStatement(sql)) {
@@ -128,7 +117,6 @@ public class MemberRepository {
         return Optional.empty();
     }
 
-    // ── FIND BY ID ───────────────────────────────────────────────────
     public Optional<Member> findById(String memberId) {
         String sql = "SELECT * FROM members WHERE id = ?";
         try (PreparedStatement ps = conn().prepareStatement(sql)) {
@@ -141,7 +129,6 @@ public class MemberRepository {
         return Optional.empty();
     }
 
-    // ── DELETE ───────────────────────────────────────────────────────
     public boolean delete(String memberId) {
         String sql = "DELETE FROM members WHERE id = ?";
         try (PreparedStatement ps = conn().prepareStatement(sql)) {
@@ -152,7 +139,6 @@ public class MemberRepository {
         }
     }
 
-    // ── HELPERS ──────────────────────────────────────────────────────
     public boolean existsByPhone(String phone) { return findByPhone(phone).isPresent(); }
 
     public int count() {
@@ -164,7 +150,6 @@ public class MemberRepository {
 
     public boolean isEmpty() { return count() == 0; }
 
-    // ── Map ResultSet → Member object ────────────────────────────────
     private Member mapRow(ResultSet rs) throws SQLException {
         String id     = rs.getString("id");
         String name   = rs.getString("name");

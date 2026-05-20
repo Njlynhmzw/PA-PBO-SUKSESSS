@@ -1,12 +1,7 @@
 package models;
 
-/**
- * Abstract class sebagai blueprint utama semua produk McLaren.
- * Menerapkan konsep: Abstraction & Encapsulation
- */
 public abstract class Product {
 
-    // ── Encapsulation: semua field private ──────────────────────────
     private String  id;
     private String  name;
     private double  price;
@@ -17,7 +12,6 @@ public abstract class Product {
 
     private static int counter = 1;
 
-    // ── Constructor ─────────────────────────────────────────────────
     public Product(String name, double price, int stock,
                    String size, boolean hasDiscount, double discountPercent) {
         this.id              = generateId();
@@ -29,17 +23,14 @@ public abstract class Product {
         this.discountPercent = hasDiscount ? discountPercent : 0.0;
     }
 
-    // ── ID generator ────────────────────────────────────────────────
     private String generateId() {
         return String.format("MCL-%03d", counter++);
     }
 
-    // ── Abstract methods (wajib diimplementasikan subclass) ─────────
     public abstract String getCategory();
     public abstract String getJenis();
     public abstract String getDetailInfo();
 
-    // ── Business logic ──────────────────────────────────────────────
     public double getFinalPrice() {
         if (hasDiscount) return price * (1 - discountPercent / 100);
         return price;
@@ -51,7 +42,6 @@ public abstract class Product {
         return "TERSEDIA";
     }
 
-    // ── Getters & Setters bervalidasi ────────────────────────────────
     public String getId()    { return id; }
     public void setId(String id) { this.id = id; }
 
@@ -90,7 +80,6 @@ public abstract class Product {
         this.discountPercent = v;
     }
 
-    // ── Static counter helpers ────────────────────────────────────
     public static void resetCounter()      { counter = 1; }
     public static int  getCounter()        { return counter; }
     public static void setCounter(int val) { counter = val; }

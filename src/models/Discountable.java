@@ -1,9 +1,5 @@
 package models;
 
-/**
- * Interface Discountable — kontrak kalkulasi diskon member.
- * Menerapkan konsep: Abstraction (interface)
- */
 public interface Discountable {
 
     double MEMBER_DISCOUNT      = 10.0;   // Regular: 10%

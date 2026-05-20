@@ -1,14 +1,5 @@
 package models;
 
-/**
- * Model Member — versi MySQL-compatible.
- *
- * ✅ PERBAIKAN:
- *   1. Tambah constructor lengkap (id, nama, phone, email, tier, totalTrx, totalBel)
- *      untuk dipakai MemberRepository saat mapRow() dari database.
- *   2. Tambah setMemberId() agar Repository bisa set ID dari MySQL counter.
- *   3. ID tidak lagi di-generate di constructor — ID datang dari MySQL counter.
- */
 public class Member {
 
     public enum Tier {
@@ -34,9 +25,8 @@ public class Member {
     private int    totalTransaksi;
     private double totalBelanja;
 
-    // ── Constructor untuk member BARU (ID belum ada, di-set oleh Repository) ──
     public Member(String nama, String phone, String email, Tier tier) {
-        this.memberId       = null; // akan di-set oleh MemberRepository.createNew()
+        this.memberId       = null;
         this.name           = nama;
         this.phone          = phone;
         this.email          = email;
@@ -45,7 +35,6 @@ public class Member {
         this.totalBelanja   = 0.0;
     }
 
-    // ✅ Constructor lengkap untuk mapRow() dari database
     public Member(String memberId, String name, String phone, String email,
                   Tier tier, int totalTransaksi, double totalBelanja) {
         this.memberId       = memberId;
@@ -57,10 +46,6 @@ public class Member {
         this.totalBelanja   = totalBelanja;
     }
 
-    /**
-     * Tambah riwayat transaksi & otomatis upgrade tier ke PLUS
-     * jika total belanja >= Rp 5.000.000
-     */
     public void tambahTransaksi(double amount) {
         this.totalTransaksi++;
         this.totalBelanja += amount;
@@ -70,9 +55,8 @@ public class Member {
         }
     }
 
-    // ── Getters & Setters ─────────────────────────────────────────
     public String getMemberId()              { return memberId; }
-    public void   setMemberId(String id)     { this.memberId = id; } // ✅ untuk Repository
+    public void   setMemberId(String id)     { this.memberId = id; }
     public String getName()                  { return name; }
     public void   setName(String n)          { this.name = n; }
     public String getPhone()                 { return phone; }

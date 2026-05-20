@@ -1,9 +1,5 @@
 package models;
 
-/**
- * Subclass TShirt — Inheritance dari Product, implementasi Discountable & Displayable.
- * Menerapkan konsep: Inheritance, Polymorphism
- */
 public class TShirt extends Product implements Discountable, Displayable {
 
     public enum JenisTShirt {

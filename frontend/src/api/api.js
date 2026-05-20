@@ -1,7 +1,4 @@
-/**
- * api.js — Semua fungsi komunikasi ke Java REST API.
- * Vite proxy meneruskan /api → http://localhost:8080
- */
+
 
 const BASE = "/api";
 
@@ -16,7 +13,6 @@ async function request(url, options = {}) {
   return data;
 }
 
-// ── PRODUCTS ──────────────────────────────────────────────────────
 export const productApi = {
   getAll:  ()        => request("/products"),
   getById: (id)      => request(`/products/${id}`),
@@ -25,7 +21,6 @@ export const productApi = {
   delete:  (id)      => request(`/products/${id}`, { method: "DELETE" }),
 };
 
-// ── MEMBERS ───────────────────────────────────────────────────────
 export const memberApi = {
   getAll:      ()         => request("/members"),
   getById:     (id)       => request(`/members/${id}`),

@@ -6,13 +6,7 @@ import models.*;
 import java.sql.*;
 import java.util.*;
 
-/**
- * ProductRepository — versi MySQL.
- *
- * ✅ PERBAIKAN: Tambah method update() yang menjalankan SQL UPDATE
- *    ke database, dipanggil oleh ProductService setiap kali ada
- *    perubahan data (nama, harga, stok, dsb.)
- */
+
 public class ProductRepository {
 
     private static final String[] KATEGORI_LIST = {
@@ -28,7 +22,6 @@ public class ProductRepository {
 
     private Connection conn() { return DatabaseConfig.getConnection(); }
 
-    // ── Generate ID dari tabel counters MySQL ────────────────────────
     private String generateId() {
         try {
             conn().setAutoCommit(false);
@@ -50,7 +43,6 @@ public class ProductRepository {
         }
     }
 
-    // ── CREATE: buat produk baru dengan ID dari MySQL counter ────────
     public Product createNew(String nama, double harga, int stok, String size,
                              boolean hasDiscount, double discountPercent,
                              String kategori, int jenisIndex) {
@@ -61,7 +53,6 @@ public class ProductRepository {
         return p;
     }
 
-    // ── SAVE (INSERT) ────────────────────────────────────────────────
     public void save(Product product) {
         String sql = """
             INSERT INTO products
@@ -88,7 +79,6 @@ public class ProductRepository {
         }
     }
 
-    // ── UPDATE (✅ method baru — persist perubahan ke MySQL) ──────────
     public void update(Product product) {
         String sql = """
             UPDATE products
@@ -114,7 +104,6 @@ public class ProductRepository {
         }
     }
 
-    // ── FIND BY ID ────────────────────────────────────────────────────
     public Optional<Product> findById(String id) {
         String sql = "SELECT * FROM products WHERE id = ?";
         try (PreparedStatement ps = conn().prepareStatement(sql)) {
@@ -127,7 +116,6 @@ public class ProductRepository {
         return Optional.empty();
     }
 
-    // ── FIND ALL ─────────────────────────────────────────────────────
     public List<Product> findAll() {
         String sql = "SELECT * FROM products ORDER BY created_at ASC";
         List<Product> result = new ArrayList<>();
@@ -140,7 +128,6 @@ public class ProductRepository {
         return result;
     }
 
-    // ── FIND BY CATEGORY ─────────────────────────────────────────────
     public List<Product> findByCategory(String category) {
         String sql = "SELECT * FROM products WHERE category = ? ORDER BY created_at ASC";
         List<Product> result = new ArrayList<>();
@@ -154,7 +141,6 @@ public class ProductRepository {
         return result;
     }
 
-    // ── DELETE ───────────────────────────────────────────────────────
     public boolean delete(String id) {
         String sql = "DELETE FROM products WHERE id = ?";
         try (PreparedStatement ps = conn().prepareStatement(sql)) {
@@ -165,7 +151,6 @@ public class ProductRepository {
         }
     }
 
-    // ── HELPERS ──────────────────────────────────────────────────────
     public boolean existsById(String id) { return findById(id).isPresent(); }
 
     public int count() {
@@ -187,7 +172,6 @@ public class ProductRepository {
         return ids;
     }
 
-    // ── Map ResultSet → Product object ───────────────────────────────
     private Product mapRow(ResultSet rs) throws SQLException {
         String  id      = rs.getString("id");
         String  name    = rs.getString("name");
