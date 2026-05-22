@@ -17,7 +17,7 @@ public class Main {
 
         ProductRepository     productRepository     = new ProductRepository();
         MemberRepository      memberRepository      = new MemberRepository();
-        TransactionRepository transactionRepository = new TransactionRepository();
+        TransactionRepository transactionRepository = new TransactionRepository(productRepository, memberRepository);
 
         ProductService     productService     = new ProductService(productRepository);
         MemberService      memberService      = new MemberService(memberRepository);

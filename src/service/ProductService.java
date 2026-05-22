@@ -83,4 +83,11 @@ public class ProductService {
         productRepository.update(p);
         return true;
     }
+
+    // Tambahkan ini di ProductService.java
+    public boolean updateProdukUtuh(Product p) {
+        if (!productRepository.existsById(p.getId())) return false;
+        productRepository.update(p);
+        return true;
+    }
 }

@@ -1,6 +1,7 @@
 package models;
 
-public abstract class Product {
+// Tambahkan implements Discountable di kelas induk
+public abstract class Product implements Discountable {
 
     private String  id;
     private String  name;
@@ -10,11 +11,10 @@ public abstract class Product {
     private boolean hasDiscount;
     private double  discountPercent;
 
-    private static int counter = 1;
-
+    // ID tidak lagi digenerate manual di sini karena sudah diurus Database
     public Product(String name, double price, int stock,
                    String size, boolean hasDiscount, double discountPercent) {
-        this.id              = generateId();
+        this.id              = null;
         this.name            = name;
         this.price           = price;
         this.stock           = stock;
@@ -23,13 +23,8 @@ public abstract class Product {
         this.discountPercent = hasDiscount ? discountPercent : 0.0;
     }
 
-    private String generateId() {
-        return String.format("MCL-%03d", counter++);
-    }
-
     public abstract String getCategory();
     public abstract String getJenis();
-    public abstract String getDetailInfo();
 
     public double getFinalPrice() {
         if (hasDiscount) return price * (1 - discountPercent / 100);
@@ -42,51 +37,38 @@ public abstract class Product {
         return "TERSEDIA";
     }
 
+    // --- IMPLEMENTASI DARI MODUL PBO (Prinsip DRY & Inheritance) ---
+    // Sekarang kelima subclass turunan tidak perlu lagi menulis ulang method ini
+    @Override
+    public double calculateMemberDiscount(String memberTier) {
+        double base = getFinalPrice();
+        if ("PLUS".equals(memberTier))    return base * (1 - Discountable.MEMBER_PLUS_DISCOUNT / 100);
+        if ("REGULAR".equals(memberTier)) return base * (1 - Discountable.MEMBER_DISCOUNT / 100);
+        return base;
+    }
+
+    @Override
+    public String getDiscountLabel() {
+        if (!isHasDiscount()) return "Tidak ada diskon produk";
+        return String.format("Diskon %.0f%% (Harga asli: Rp %,.0f)", getDiscountPercent(), getPrice());
+    }
+
+    // --- GETTER & SETTER ---
     public String getId()    { return id; }
     public void setId(String id) { this.id = id; }
-
     public String getName()  { return name; }
-    public void setName(String name) {
-        if (name == null || name.trim().isEmpty())
-            throw new IllegalArgumentException("Nama produk tidak boleh kosong!");
-        this.name = name.trim();
-    }
-
+    public void setName(String name) { this.name = name.trim(); }
     public double getPrice() { return price; }
-    public void setPrice(double price) {
-        if (price <= 0) throw new IllegalArgumentException("Harga harus lebih dari 0!");
-        this.price = price;
-    }
-
+    public void setPrice(double price) { this.price = price; }
     public int getStock()    { return stock; }
-    public void setStock(int stock) {
-        if (stock < 0) throw new IllegalArgumentException("Stok tidak boleh negatif!");
-        this.stock = stock;
-    }
-
+    public void setStock(int stock) { this.stock = stock; }
     public String getSize()  { return size; }
     public void setSize(String size) { this.size = size; }
-
-    public boolean isHasDiscount()       { return hasDiscount; }
+    public boolean isHasDiscount() { return hasDiscount; }
     public void setHasDiscount(boolean v) {
         this.hasDiscount = v;
         if (!v) this.discountPercent = 0.0;
     }
-
-    public double getDiscountPercent()   { return discountPercent; }
-    public void setDiscountPercent(double v) {
-        if (v < 0 || v > 100)
-            throw new IllegalArgumentException("Diskon harus antara 0–100%!");
-        this.discountPercent = v;
-    }
-
-    public static void resetCounter()      { counter = 1; }
-    public static int  getCounter()        { return counter; }
-    public static void setCounter(int val) { counter = val; }
-
-    @Override
-    public String toString() {
-        return String.format("%-10s | %-30s | Rp %,10.0f | Stok: %3d | %s",
-                id, name, price, stock, getStatusStok());
-    }
+    public double getDiscountPercent() { return discountPercent; }
+    public void setDiscountPercent(double v) { this.discountPercent = v; }
 }

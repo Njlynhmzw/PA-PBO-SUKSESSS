@@ -1,51 +1,82 @@
 package db;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.Map;
 
-/**
- * DatabaseConfig — Singleton koneksi ke MySQL.
- * Taruh di package baru: db/
- *
- * Dependency yang perlu ditambah di IntelliJ:
- *   File → Project Structure → Libraries → + → From Maven
- *   → mysql:mysql-connector-java:8.0.33
- */
 public class DatabaseConfig {
 
-    // ── Sesuaikan dengan Laragon kalian ─────────────────────────
-    private static final String URL      = "jdbc:mysql://localhost:3306/mclaren_db"
-            + "?useSSL=false&allowPublicKeyRetrieval=true"
-            + "&serverTimezone=Asia/Makassar";
-    private static final String USER     = "root";
-    private static final String PASSWORD = "";   // Laragon default: kosong
+    private static final Map<String, String> env = loadEnv();
 
-    private static Connection connection;
+    private static final String URL =
+            env.get("DB_URL");
 
-    /** Ambil koneksi (buat baru jika belum ada / sudah tertutup) */
-    public static Connection getConnection() {
-        try {
-            if (connection == null || connection.isClosed()) {
-                connection = DriverManager.getConnection(URL, USER, PASSWORD);
-                System.out.println("✅ Database terhubung: mclaren_db");
+    private static final String USER =
+            env.get("DB_USER");
+
+    private static final String PASSWORD =
+            env.get("DB_PASSWORD");
+
+    private static Map<String, String> loadEnv() {
+
+        Map<String, String> map = new HashMap<>();
+
+        try (BufferedReader br =
+                     new BufferedReader(new FileReader(".env"))) {
+
+            String line;
+
+            while ((line = br.readLine()) != null) {
+
+                line = line.trim();
+
+                if (line.isEmpty() || line.startsWith("#")) {
+                    continue;
+                }
+
+                String[] parts = line.split("=", 2);
+
+                if (parts.length == 2) {
+
+                    map.put(
+                            parts[0].trim(),
+                            parts[1].trim()
+                    );
+                }
             }
-        } catch (SQLException e) {
-            System.err.println("❌ Gagal konek ke database: " + e.getMessage());
-            throw new RuntimeException("Database connection failed", e);
+
+        } catch (IOException e) {
+
+            throw new RuntimeException(
+                    "Gagal membaca file .env",
+                    e
+            );
         }
-        return connection;
+
+        return map;
     }
 
-    /** Tutup koneksi saat aplikasi berhenti */
-    public static void closeConnection() {
+    public static Connection getConnection() {
+
         try {
-            if (connection != null && !connection.isClosed()) {
-                connection.close();
-                System.out.println("Database connection closed.");
-            }
+
+            return DriverManager.getConnection(
+                    URL,
+                    USER,
+                    PASSWORD
+            );
+
         } catch (SQLException e) {
-            System.err.println("Error closing connection: " + e.getMessage());
+
+            throw new RuntimeException(
+                    "Gagal koneksi database",
+                    e
+            );
         }
     }
 }

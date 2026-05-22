@@ -6,41 +6,36 @@ import models.*;
 import java.sql.*;
 import java.util.*;
 
-
 public class ProductRepository {
-
-    private static final String[] KATEGORI_LIST = {
-            "T-Shirts", "Headwear", "Outerwear", "Footwear", "Gift & Accessories"
-    };
-    private static final String[][] JENIS_MAP = {
-            {"Polo Shirt","Crew Neck","V-Neck","Oversized","Racing Tee"},
-            {"Snapback Cap","Fitted Cap","Bucket Hat","Beanie","Visor"},
-            {"Jacket","Hoodie","Windbreaker","Rain Jacket","Varsity Jacket"},
-            {"Sneakers","Sandals","Boots","Slip-On","Racing Shoes"},
-            {"Keychain","Mug","Phone Case","Lanyard","Sticker Pack","Model Car","Backpack","Wallet"}
-    };
 
     private Connection conn() { return DatabaseConfig.getConnection(); }
 
     private String generateId() {
-        try {
-            conn().setAutoCommit(false);
-            conn().prepareStatement(
-                    "UPDATE counters SET value = value + 1 WHERE name = 'product'"
-            ).executeUpdate();
+        String updateSql = "UPDATE counters SET value = value + 1 WHERE name = 'product'";
+        String selectSql = "SELECT value FROM counters WHERE name = 'product'";
 
-            ResultSet rs = conn().prepareStatement(
-                    "SELECT value FROM counters WHERE name = 'product'"
-            ).executeQuery();
-            rs.next();
-            int num = rs.getInt(1);
-            conn().commit();
-            conn().setAutoCommit(true);
-            return String.format("PRD-%04d", num);
+        // Membungkus Connection, Statement, dan ResultSet dalam try-with-resources
+        try (Connection conn = conn()) {
+            conn.setAutoCommit(false);
+            try (PreparedStatement psUpdate = conn.prepareStatement(updateSql);
+                 PreparedStatement psSelect = conn.prepareStatement(selectSql)) {
+
+                psUpdate.executeUpdate();
+                try (ResultSet rs = psSelect.executeQuery()) {
+                    if (rs.next()) {
+                        int num = rs.getInt(1);
+                        conn.commit();
+                        return String.format("PRD-%04d", num);
+                    }
+                }
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            }
         } catch (SQLException e) {
-            try { conn().rollback(); conn().setAutoCommit(true); } catch (SQLException ignored) {}
             throw new RuntimeException("Gagal generate product ID", e);
         }
+        return null;
     }
 
     public Product createNew(String nama, double harga, int stok, String size,
@@ -63,7 +58,11 @@ public class ProductRepository {
                 size=VALUES(size), has_discount=VALUES(has_discount),
                 discount_percent=VALUES(discount_percent)
             """;
-        try (PreparedStatement ps = conn().prepareStatement(sql)) {
+
+        // Gunakan try-with-resources agar koneksi otomatis ditutup
+        try (Connection conn = conn();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
             ps.setString (1, product.getId());
             ps.setString (2, product.getName());
             ps.setDouble (3, product.getPrice());
@@ -90,7 +89,10 @@ public class ProductRepository {
                 discount_percent = ?
             WHERE id = ?
             """;
-        try (PreparedStatement ps = conn().prepareStatement(sql)) {
+
+        try (Connection conn = conn();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
             ps.setString (1, product.getName());
             ps.setDouble (2, product.getPrice());
             ps.setInt    (3, product.getStock());
@@ -106,10 +108,13 @@ public class ProductRepository {
 
     public Optional<Product> findById(String id) {
         String sql = "SELECT * FROM products WHERE id = ?";
-        try (PreparedStatement ps = conn().prepareStatement(sql)) {
+        try (Connection conn = conn();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
             ps.setString(1, id);
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) return Optional.of(mapRow(rs));
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return Optional.of(mapRow(rs));
+            }
         } catch (SQLException e) {
             throw new RuntimeException("Gagal mencari produk: " + e.getMessage(), e);
         }
@@ -119,8 +124,11 @@ public class ProductRepository {
     public List<Product> findAll() {
         String sql = "SELECT * FROM products ORDER BY created_at ASC";
         List<Product> result = new ArrayList<>();
-        try (Statement st = conn().createStatement();
+
+        try (Connection conn = conn();
+             Statement st = conn.createStatement();
              ResultSet rs  = st.executeQuery(sql)) {
+
             while (rs.next()) result.add(mapRow(rs));
         } catch (SQLException e) {
             throw new RuntimeException("Gagal mengambil produk: " + e.getMessage(), e);
@@ -131,10 +139,14 @@ public class ProductRepository {
     public List<Product> findByCategory(String category) {
         String sql = "SELECT * FROM products WHERE category = ? ORDER BY created_at ASC";
         List<Product> result = new ArrayList<>();
-        try (PreparedStatement ps = conn().prepareStatement(sql)) {
+
+        try (Connection conn = conn();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
             ps.setString(1, category);
-            ResultSet rs = ps.executeQuery();
-            while (rs.next()) result.add(mapRow(rs));
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) result.add(mapRow(rs));
+            }
         } catch (SQLException e) {
             throw new RuntimeException("Gagal mencari produk by kategori: " + e.getMessage(), e);
         }
@@ -143,7 +155,9 @@ public class ProductRepository {
 
     public boolean delete(String id) {
         String sql = "DELETE FROM products WHERE id = ?";
-        try (PreparedStatement ps = conn().prepareStatement(sql)) {
+        try (Connection conn = conn();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
             ps.setString(1, id);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
@@ -154,19 +168,28 @@ public class ProductRepository {
     public boolean existsById(String id) { return findById(id).isPresent(); }
 
     public int count() {
-        try (ResultSet rs = conn().createStatement()
-                .executeQuery("SELECT COUNT(*) FROM products")) {
-            rs.next();
-            return rs.getInt(1);
-        } catch (SQLException e) { return 0; }
+        String sql = "SELECT COUNT(*) FROM products";
+        try (Connection conn = conn();
+             Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery(sql)) {
+
+            if (rs.next()) return rs.getInt(1);
+        } catch (SQLException e) {
+            return 0;
+        }
+        return 0;
     }
 
     public boolean isEmpty() { return count() == 0; }
 
     public Set<String> getAllIds() {
         Set<String> ids = new LinkedHashSet<>();
-        try (ResultSet rs = conn().createStatement()
-                .executeQuery("SELECT id FROM products ORDER BY created_at")) {
+        String sql = "SELECT id FROM products ORDER BY created_at";
+
+        try (Connection conn = conn();
+             Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery(sql)) {
+
             while (rs.next()) ids.add(rs.getString(1));
         } catch (SQLException ignored) {}
         return ids;
@@ -220,15 +243,17 @@ public class ProductRepository {
         };
     }
 
+    // Menggunakan referensi ke ProductCategory yang terpusat
     private int resolveJenisIndex(String kategori, String jenisLabel) {
         int katIdx = -1;
-        for (int i = 0; i < KATEGORI_LIST.length; i++) {
-            if (KATEGORI_LIST[i].equalsIgnoreCase(kategori)) { katIdx = i; break; }
+        for (int i = 0; i < ProductCategory.KATEGORI_LIST.length; i++) {
+            if (ProductCategory.KATEGORI_LIST[i].equalsIgnoreCase(kategori)) { katIdx = i; break; }
         }
         if (katIdx == -1) throw new IllegalArgumentException("Kategori tidak valid: " + kategori);
-        for (int j = 0; j < JENIS_MAP[katIdx].length; j++) {
-            if (JENIS_MAP[katIdx][j].equalsIgnoreCase(jenisLabel)) return j;
+
+        for (int j = 0; j < ProductCategory.JENIS_MAP[katIdx].length; j++) {
+            if (ProductCategory.JENIS_MAP[katIdx][j].equalsIgnoreCase(jenisLabel)) return j;
         }
-        return 0;
+        return 0; // fallback jika label salah
     }
 }

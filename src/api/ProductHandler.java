@@ -70,50 +70,118 @@ public class ProductHandler implements HttpHandler {
 
     private void handlePost(HttpExchange ex) throws IOException {
         String body = ApiServer.readBody(ex);
-        try {
-            // Parse JSON manual (tanpa library eksternal)
-            String nama            = JsonParser.getString(body, "name");
-            double harga           = JsonParser.getDouble(body, "price");
-            int    stok            = JsonParser.getInt(body, "stock");
-            String size            = JsonParser.getString(body, "size");
-            String kategori        = JsonParser.getString(body, "category");
-            String jenis           = JsonParser.getString(body, "jenis");
-            boolean hasDiscount    = JsonParser.getBoolean(body, "hasDiscount");
-            double discountPercent = JsonParser.getDouble(body, "discountPercent");
 
-            // Konversi jenis (string label) ke index enum
-            int jenisIndex = resolveJenisIndex(kategori, jenis);
+        String name     = JsonParser.getString(body, "name");
+        String category = JsonParser.getString(body, "category");
+        String jenis    = JsonParser.getString(body, "jenis");
+        String size     = JsonParser.getString(body, "size");
+
+        // 1. Validasi Field Wajib (String)
+        if (name.isBlank() || category.isBlank() || jenis.isBlank()) {
+            ApiServer.sendResponse(ex, 400, "{\"error\":\"Field 'name', 'category', dan 'jenis' wajib diisi!\"}");
+            return;
+        }
+
+        try {
+            double price   = JsonParser.getDouble(body, "price");
+            int    stock   = JsonParser.getInt(body, "stock");
+
+            // 2. Validasi Logika Angka
+            if (price <= 0) {
+                ApiServer.sendResponse(ex, 400, "{\"error\":\"Harga produk harus lebih dari 0!\"}");
+                return;
+            }
+            if (stock < 0) {
+                ApiServer.sendResponse(ex, 400, "{\"error\":\"Stok produk tidak boleh negatif!\"}");
+                return;
+            }
+
+            boolean hasDsc = JsonParser.getBoolean(body, "hasDiscount");
+            double  dscPct = hasDsc ? JsonParser.getDouble(body, "discountPercent") : 0.0;
+
+            // 3. Validasi Diskon
+            if (hasDsc && (dscPct <= 0 || dscPct > 100)) {
+                ApiServer.sendResponse(ex, 400, "{\"error\":\"Persentase diskon harus antara 1% hingga 100%!\"}");
+                return;
+            }
+
+            int jenisIndex = resolveJenisIndex(category, jenis);
+
             Product p = productService.tambahProduk(
-                    nama, harga, stok, size, hasDiscount, discountPercent, kategori, jenisIndex
+                    name, price, stock, size, hasDsc, dscPct, category, jenisIndex
             );
+
             ApiServer.sendResponse(ex, 201, productToJson(p));
+
+        } catch (IllegalArgumentException e) {
+            // Menangkap error dari resolveJenisIndex atau Service
+            ApiServer.sendResponse(ex, 400, "{\"error\":\"" + e.getMessage() + "\"}");
         } catch (Exception e) {
-            ApiServer.sendResponse(ex, 400, "{\"error\":\"" + escapeJson(e.getMessage()) + "\"}");
+            ApiServer.sendResponse(ex, 500, "{\"error\":\"Terjadi kesalahan format data angka\"}");
         }
     }
 
     // ── PUT ──────────────────────────────────────────────────────────
 
     private void handlePut(HttpExchange ex, String id) throws IOException {
-        if (id == null) { ApiServer.sendResponse(ex, 400, "{\"error\":\"ID diperlukan\"}"); return; }
+        if (id == null) {
+            ApiServer.sendResponse(ex, 400, "{\"error\":\"ID diperlukan\"}");
+            return;
+        }
+
         String body = ApiServer.readBody(ex);
+        String name = JsonParser.getString(body, "name");
+
+        if (name.isBlank()) {
+            ApiServer.sendResponse(ex, 400, "{\"error\":\"Nama produk tidak boleh kosong!\"}");
+            return;
+        }
+
         try {
-            String nama   = JsonParser.getString(body, "name");
-            double harga  = JsonParser.getDouble(body, "price");
-            int    stok   = JsonParser.getInt(body, "stock");
-            boolean ok    = productService.updateLengkap(id, nama, harga, stok);
-            if (ok) {
-                ApiServer.sendResponse(ex, 200, "{\"message\":\"Produk diupdate\"}");
-            } else {
+            double price  = JsonParser.getDouble(body, "price");
+            int    stock  = JsonParser.getInt(body, "stock");
+            String size   = JsonParser.getString(body, "size");
+            boolean hasDsc= JsonParser.getBoolean(body, "hasDiscount");
+            double dscPct = hasDsc ? JsonParser.getDouble(body, "discountPercent") : 0.0;
+
+            if (price <= 0 || stock < 0 || (hasDsc && (dscPct <= 0 || dscPct > 100))) {
+                ApiServer.sendResponse(ex, 400, "{\"error\":\"Data angka (harga/stok/diskon) tidak valid!\"}");
+                return;
+            }
+
+            Optional<Product> opt = productService.cariById(id);
+            if (opt.isEmpty()) {
                 ApiServer.sendResponse(ex, 404, "{\"error\":\"Produk tidak ditemukan\"}");
+                return;
+            }
+
+            Product p = opt.get();
+            p.setName(name);
+            p.setPrice(price);
+            p.setStock(stock);
+            p.setSize(size);
+            p.setHasDiscount(hasDsc);
+            p.setDiscountPercent(dscPct);
+
+            // Karena Repository.update() bukan lewat service di contoh aslimu,
+            // idealnya update panggil ProductService, namun karena struktur method di service dipisah-pisah (updateNama, updateHarga),
+            // Kita bisa menggunakan updateLengkap, atau panggil repository.
+            // Asumsi service punya method update yang menerima Product:
+            boolean ok = productService.updateProdukUtuh(p);
+
+            if (ok) {
+                ApiServer.sendResponse(ex, 200, productToJson(p));
+            } else {
+                ApiServer.sendResponse(ex, 500, "{\"error\":\"Gagal update produk\"}");
             }
         } catch (Exception e) {
-            ApiServer.sendResponse(ex, 400, "{\"error\":\"" + escapeJson(e.getMessage()) + "\"}");
+            ApiServer.sendResponse(ex, 400, "{\"error\":\"Format request tidak valid\"}");
         }
     }
 
     // ── DELETE ───────────────────────────────────────────────────────
 
+    
     private void handleDelete(HttpExchange ex, String id) throws IOException {
         if (id == null) { ApiServer.sendResponse(ex, 400, "{\"error\":\"ID diperlukan\"}"); return; }
         boolean ok = productService.hapusProduk(id);
